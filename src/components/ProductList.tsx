@@ -2,7 +2,14 @@ import styled from 'styled-components'
 
 import { auth, database, storage } from '../firebase'
 import { CellImg } from './Table'
-import { toCurrencyStringRu, useFirebaseState, useFirebaseValue } from '../utils'
+import { toCurrencyStringRu, useFirebaseValue } from '../utils'
+
+import Accordion from '@mui/material/Accordion';
+import Button from '@mui/material/Button';
+import InfoIcon from '@mui/icons-material/Info';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
 const Root = styled.div`
   padding: 1em;
@@ -18,7 +25,6 @@ const Root = styled.div`
 
   .category {
     text-align: center;
-    background-color: #239F2328;
     color: #239F23;
     padding: 12px 0;
     font-size: 32px;
@@ -137,6 +143,13 @@ const Root = styled.div`
     color: #239F23;
   }
 
+  .product-unit-price {
+    font-size: 16px;
+    font-weight: 600;
+    color: #aaa;
+    margin-top: 4px;
+  }
+
   .product-buy {
     background-color: #239F23;
     border: 0;
@@ -176,7 +189,11 @@ export const addToCart = (count, model) => {
 
 const Product = props => {
   const [count, setCount, incCount, decCount] = useCounter(1, 1)
-  const { model, edit, admin } = props
+  const { model, edit, handleOpenCooperateModal } = props
+
+  const [isDetailsModalOpened, setDetailsModalOpened] = useState(false);
+  const openModal = () => { setDetailsModalOpened(true) };
+  const closeModal = () => { setDetailsModalOpened(false) };
 
   const deleteProduct = useCallback(() => {
     if (!model.name || confirm(`Вы собираетесь удалить продукт "${model.name}", это действие невозможно отменить.\n\nВы уверены?`)) {
@@ -205,17 +222,30 @@ const Product = props => {
           <div className='product-section product-section-grid'>
             <div>
               <p className='product-label'>фасовка:</p>
-              <p>{model.unit || '-'}</p>
+              <p>{model.unit || '-'} {model.unitName}</p>
             </div>
-            {model.link && 
+            {(model.description || model.about) && 
               <div>
-                <p className='product-label'>ссылка на отзыв:</p>
-                <a href={model.link}>Подробнее</a>
+                <Button onClick={openModal}>
+                  Подробнее
+                </Button>
               </div>
             }
           </div>
+          <ProductDetailsModal isOpened={isDetailsModalOpened} onClose={closeModal} details={model} />
+          {model.isForCooperate && 
+            <Button onClick={handleOpenCooperateModal} endIcon={<InfoIcon />}>
+              Продукт для кооперации
+            </Button>
+          }
           <footer className='product-section product-section-grid'>
-            <p className='product-price'>{model.price ? toCurrencyStringRu(model.price) : '-'}</p>
+            <div>
+              <p className='product-price'>{model.price ? toCurrencyStringRu(model.price) : '-'}</p>
+              <p className='product-unit-price'>
+                {(!!model.unitPrice && `${model.unitPrice} ₽ за 1 ${model.unitName}`)}
+                &nbsp;
+              </p>
+            </div>
             <div className='product-counter'>
               <button disabled={!canBuy} onClick={decCount}>-</button>
               <input disabled={!canBuy} size={11} style={{ display: 'block', textAlign: 'center' }} value={canBuy ? count : 'Нет в наличии'} readOnly />
@@ -231,12 +261,32 @@ const Product = props => {
             <FirebaseEditorField path={`/products/${model.id}/name`} value={model.name} enabled={edit} />
           </div>
           <div className='product-section'>
-            <p className='product-label'>комментарий / описание:</p>
+            <p className='product-label'>комментарий (будет снаружи карточки):</p>
             <FirebaseEditorField path={`/products/${model.id}/comment`} value={model.comment} enabled={edit} />
           </div>
           <div className='product-section'>
-            <p className='product-label'>фасовка:</p>
+            <p className='product-label'>описание (будет внутри модалки):</p>
+            <FirebaseEditorField path={`/products/${model.id}/description`} value={model.description} enabled={edit} />
+          </div>
+          <div className='product-section'>
+            <p className='product-label'>внутренний комментарий (будет внутри модалки):</p>
+            <FirebaseEditorField path={`/products/${model.id}/about`} value={model.about} enabled={edit} />
+          </div>
+          <div className='product-section'>
+            <p className='product-label'>продукт для кооперации:</p>
+            <FirebaseEditorCheckbox path={`/products/${model.id}/isForCooperate`} value={model.isForCooperate} enabled={edit} />
+          </div>
+          <div className='product-section'>
+            <p className='product-label'>скрыть товар:</p>
+            <FirebaseEditorCheckbox path={`/products/${model.id}/hidden`} value={model.hidden} enabled={edit} />
+          </div>
+          <div className='product-section'>
+            <p className='product-label'>фасовка (число):</p>
             <FirebaseEditorField path={`/products/${model.id}/unit`} value={model.unit} enabled={edit} />
+          </div>
+          <div className='product-section'>
+            <p className='product-label'>ед. измерения фасовки (кг. / шт. / л.):</p>
+            <FirebaseEditorField path={`/products/${model.id}/unitName`} value={model.unitName} enabled={edit} />
           </div>
           <div className='product-section'>
             <p className='product-label'>ссылка на отзыв:</p>
@@ -248,11 +298,15 @@ const Product = props => {
             <p className='product-label'>цена:</p>
             <FirebaseEditorField path={`/products/${model.id}/price`} value={model.price} enabled={edit} number />
           </div>
+          <div className='product-section'>
+            <p className='product-label'>цена за 1 ед. измерения фасовки:</p>
+            <FirebaseEditorField path={`/products/${model.id}/unitPrice`} value={model.unitPrice} enabled={edit} number />
+          </div>
         </React.Fragment>
       }
       </div>
       {!edit && <button disabled={!canBuy} className='product-buy' onClick={addToBasket}>В корзину</button>}
-      {edit && <button className='product-remove' onClick={deleteProduct}>Удалить товар</button>}
+      {edit && <button className='product-remove' onClick={deleteProduct}>Удалить</button>}
     </article>
   )
 }
@@ -260,10 +314,14 @@ const Product = props => {
 import { hash, log, subscribe, useCounter, useSelector, useToggle } from '../utils'
 import React, { useCallback, useEffect, useState } from 'react'
 import FirebaseEditorField from './FirebaseEditorField'
+import FirebaseEditorCheckbox from './FirebaseEditorCheckbox'
 import FirebaseImageUploader from './FirebaseImageUploader'
 import PageTitle from './PageTitle'
 import EditorField from './EditorField'
 import CurrentProcurement from './CurrentProcurement'
+import ProductDetailsModal from './ProductDetailsModal';
+import { Badge } from '@mui/material';
+import CooperateModal from './CooperateModal';
 
 const CategoryEditorField = ({ category, products, ...rest }) => {
   const save = useCallback(name => {
@@ -316,39 +374,94 @@ const overwriteProducts = () => {
 }
 
 export default () => {
-  const admin = useSelector(adminSelector)
-  const [edit, toggleEdit] = useToggle(false)
-  const products = useFirebaseValue('products', [], categorize)
+  const admin = useSelector(adminSelector);
+  const [edit, toggleEdit] = useToggle(false);
+  const products = useFirebaseValue('products', [], categorize);
+
+  const [isCooperateModalOpened, setCooperateModalOpened] = useState(false);
+  const openModal = () => {
+    setCooperateModalOpened(true);
+  };
+  const closeModal = () => {
+    setCooperateModalOpened(false);
+  };
+
+  const categoryList = (products) => Object.entries<any>(products).reduce((acc, [category, products]) => {
+    if (products.some(({ hidden }) => hidden !== true) || edit) {
+      acc.push([category, products])
+    }
+    return acc;
+  }, [])
+  
+  const productList = (products, edit) => products.reduce((acc, product) => {
+    if (!product.hidden || edit) {
+      acc.push(product);
+    }
+    return acc;
+  }, [])
 
   return (
     <Root>
       <PageTitle>
         Каталог
-        {admin && <button style={{ float: 'right' }} onClick={toggleEdit}>{edit ? '💾' : '✏️'}</button>}
-        {edit && <button style={{ float: 'right' }} onClick={overwriteProducts}>🗃️</button>}
-        {edit && <button style={{ float: 'right' }} onClick={addProduct()}>➕</button>}
+        {admin && (
+          <button style={{ float: 'right' }} onClick={toggleEdit}>
+            {edit ? '💾' : '✏️'}
+          </button>
+        )}
+        {edit && (
+          <button style={{ float: 'right' }} onClick={overwriteProducts}>
+            🗃️
+          </button>
+        )}
+        {edit && (
+          <button style={{ float: 'right' }} onClick={addProduct()}>
+            ➕
+          </button>
+        )}
       </PageTitle>
       <section>
-        <CurrentProcurement edit={edit}/>
+        <CurrentProcurement edit={edit} />
       </section>
       <section>
-        {Object.entries<any>(products).map(([category, products]) =>
-          <React.Fragment key={category}>
-            <div className="category">
-              <CategoryEditorField category={category} products={products} enabled={edit} />
-              {edit && <button style={{ float: 'right' }} onClick={addProduct(category)}>➕</button>}
-            </div>
-            <div className='product-list'>
-              {products.map((p, i) => <Product
-                key={p.id}
-                model={p}
-                admin={admin}
-                edit={edit}
-              />)}
-            </div>
-          </React.Fragment>
+        {categoryList(products).map(([category, items]) =>
+              <React.Fragment key={category}>
+                <Accordion>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <div className='category'>
+                      <CategoryEditorField
+                        category={category}
+                        products={items}
+                        enabled={edit}
+                      />
+                      {edit && (
+                        <button
+                          style={{ float: 'right' }}
+                          onClick={addProduct(category)}
+                        >
+                          ➕
+                        </button>
+                      )}
+                    </div>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div className='product-list'>
+                      {productList(items, edit).map((item) =>  
+                        <Product
+                          key={item.id}
+                          model={item}
+                          admin={admin}
+                          edit={edit}
+                          handleOpenCooperateModal={openModal}
+                        />
+                      )}
+                    </div>
+                  </AccordionDetails>
+                </Accordion>
+              </React.Fragment>
         )}
       </section>
+      <CooperateModal isOpened={isCooperateModalOpened} onClose={closeModal} />
     </Root>
-  )
-}
+  );
+};

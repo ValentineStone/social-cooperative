@@ -1,14 +1,8 @@
 import { CircularProgress } from '@mui/material';
-import localizedFormat from 'dayjs/plugin/localizedFormat';
-import dayjs from 'dayjs';
-import 'dayjs/locale/ru';
 
-import { useFirebaseState } from '../../utils';
+import { locilizeDate, useFirebaseState } from '../../utils';
 import Root from './MainPage.style';
 
-dayjs.extend(localizedFormat)
-
-const locilizeDate = (date: number | string | Date) => dayjs(date).locale('ru').format('DD MMMM, dddd, HH:mm');
 const now = Date.now();
 const previewConfig = {
   title: 'Новая совместная закупка уже скоро!',
@@ -17,16 +11,21 @@ const previewConfig = {
 };
 
 export default function MainPage() {
-  const [{ startDate = 0, endDate = 0 }] = useFirebaseState('/currentProcurement', {});
+  const [{ startDate = 0, endDate = 0 }] = useFirebaseState(
+    '/currentProcurement',
+    {}
+  );
+
+  const procurementIsReady = now > startDate && now < endDate;
 
   if (now < startDate) {
-    previewConfig.subtitle = 'Дата начала:'
+    previewConfig.subtitle = 'Дата начала:';
     previewConfig.date = locilizeDate(startDate);
   } else if (now < endDate) {
-    previewConfig.title = 'Совместная закупка уже идёт!'
-    previewConfig.subtitle = 'Дата окончания:'
+    previewConfig.title = 'Совместная закупка уже идёт!';
+    previewConfig.subtitle = 'Дата окончания:';
     previewConfig.date = locilizeDate(endDate);
-  } 
+  }
 
   return (
     <>
@@ -36,24 +35,20 @@ export default function MainPage() {
             <img src='/logo.svg' alt='' height='37' />
           </header>
           <section className='preview'>
-            {startDate === 0 && 
+            {startDate === 0 && (
               <div className='preview-overlay'>
-                <CircularProgress color="inherit" />
+                <CircularProgress color='inherit' />
               </div>
-            }
+            )}
             <div className='preview-container'>
-              <h1 className='preview-heading'>
-                {previewConfig.title}
-              </h1>
-              <p>
-                {previewConfig.subtitle}
-              </p>
-              {previewConfig.date && 
-                <h2 className='preview-subheading'>
-                  {previewConfig.date}
-                </h2>
-              }
-              <a className='preview-button' href='/store'>Посмотреть склад</a>
+              <h1 className='preview-heading'>{previewConfig.title}</h1>
+              <p>{previewConfig.subtitle}</p>
+              {previewConfig.date && (
+                <h2 className='preview-subheading'>{previewConfig.date}</h2>
+              )}
+              {procurementIsReady && <a className='preview-button' href='/store'>
+                Каталог
+              </a>}
             </div>
           </section>
           <main className='main-page-content'>
@@ -62,8 +57,21 @@ export default function MainPage() {
                 <h2>Что такое СоцКооп</h2>
                 <p>
                   Потребительский кооператив – это объединение людей, созданное
-                  для борьбы с дороговизной путём совместной закупки товаров.
-                  Участники кооператива становятся пайщиками.
+                  для удовлетворения их потребностей в качественных продуктах по
+                  справедливой цене. Мы боремся с дороговизной путём совместной
+                  закупки продуктов.
+                </p>
+
+                <p>
+                  Участники кооператива становятся пайщиками, совладельцами
+                  потребительского кооператива.
+                </p>
+
+                <p>
+                  У нашего кооператива нет другого собственника, кроме самих
+                  пайщиков, нет никого, кто присвоил бы себе доход. Доход нашего
+                  кооператива идёт на развитие тех направлений деятельности,
+                  которые одобрят сами пайщики.
                 </p>
               </article>
               <aside className='page-section-aside'>
@@ -80,17 +88,20 @@ export default function MainPage() {
                 <p>
                   Кооператив построен на принципах горизонтальной экономической
                   структуры, вовлекает пайщиков в работу и обеспечивает
-                  прозрачность всех её этапов.
+                  прозрачность всех её этапов. 
                 </p>
+                
                 <p>
-                  Пайщики помогают в выборе поставщиков, товаров, в оценке
-                  качества, участвуют в работе ревизионной комиссии и другой
-                  кооперативной деятельности.
+                  Пайщики помогают в выборе
+                  поставщиков, продуктов, в оценке качества, участвуют в работе
+                  ревизионной комиссии и другой кооперативной деятельности. 
                 </p>
+                
                 <p>
-                  Мы приглашаем к участию всех, для кого товары в магазинах
-                  стали слишком дорогими. Совместная закупка позволяет
-                  приобретать товары на 15 – 50% дешевле.
+                  Продукты
+                  в нашем каталоге могут быть дешевле, чем в магазине у дома, а
+                  иногда нет. Но пайщики выбирают всегда лучшее качество для
+                  совместной закупки.
                 </p>
               </article>
             </section>
@@ -98,17 +109,10 @@ export default function MainPage() {
               <article className='page-section-content'>
                 <h2>Как это работает</h2>
                 <p>
-                  Достигается это прямой работой с производителями и крупными
-                  оптовыми поставщиками, а также специальным налоговым режимом
-                  для потребительских кооперативов. Но главное – активным
-                  участием пайщиков.
+                  Достигается это прямой работой с производителями и крупными оптовыми поставщиками, а также специальным налоговым режимом для потребительских кооперативов. Но главное – активным участием пайщиков. 
                 </p>
                 <p>
-                  Когда вы убедитесь в выгодности совместных закупок, пригласите
-                  в кооператив друзей, соседей, коллег по работе! Чем больше
-                  людей будет покупать совместно, тем больше будут объёмы
-                  закупки, и тем более выгодные условия можно будет получить у
-                  поставщиков.
+                  Когда вы убедитесь в выгодности совместных закупок, пригласите в кооператив друзей, соседей, коллег по работе! Чем больше людей будет покупать совместно, тем больше будут объёмы закупки, и тем более выгодные условия можно будет получить у поставщиков. 
                 </p>
               </article>
               <aside className='page-section-aside'>
@@ -119,22 +123,13 @@ export default function MainPage() {
               <article className='page-section-content'>
                 <h2>Это безопасно</h2>
                 <p>
-                  Участие в потребительском кооперативе не накладывает на
-                  пайщиков никаких скрытых обязательств. Нет никаких
-                  периодических или обязательных платежей.
+                  Участие в потребительском кооперативе не накладывает на пайщиков никаких скрытых обязательств. Нет никаких периодических или обязательных платежей. Личная информация защищается в соответствии с Законом 152-ФЗ «О защите персональных данных».
                 </p>
-
                 <p>
-                  Личная информация защищается в соответствии с Законом 152-ФЗ
-                  “О защите персональных данных”. Платежи проходят напрямую на
-                  расчётный счёт кооператива и защищены технологиями банковской
-                  безопасности.
+                  Платежи проходят напрямую на расчётный счёт кооператива и защищены технологиями банковской безопасности. Каждому пайщику доступна информация о движении средств на его паевом счету. Пайщики вправе получать информацию о расходовании средств кооператива в целом.
                 </p>
-
                 <p>
-                  Каждому пайщику доступна информация о движении средств на его
-                  паевом счету. Пайщики вправе получать информацию о
-                  расходовании средств кооператива в целом.
+                  Подробно об уставе и других нормативных документах вы можете узнать в телеграм-боте ниже. 
                 </p>
               </article>
               <aside className='page-section-aside'>
@@ -145,16 +140,16 @@ export default function MainPage() {
               <article className='page-section-content'>
                 <h2>Планы на будущее</h2>
                 <p>
-                  Мы хотим разрушить монополию корпораций на поставки
-                  продовольствия и важнейших товаров нашим семьям. Мы хотим
-                  привнести в жизнь всех участников радость общего дела.
+                Мы хотим разрушить монополию корпораций на поставки продовольствия и важнейших продуктов нашим семьям. Мы хотим привнести в жизнь всех участников радость общего дела.
                 </p>
                 <p>
-                  Присоединяйтесь к ближайшей закупке, пишите в наш чат,
-                  расскажите о нас вашим друзьям и близким!
+                  Присоединяйтесь к ближайшей закупке, пишите в наш чат, расскажите о нас вашим друзьям и близким!
                 </p>
                 <p>
-                  Наш сайт <a href='#'>СОЦКООП.РФ</a>
+                  Вот наш{' '}
+                  <a href='/store' target='_blank'>
+                    КАТАЛОГ
+                  </a>
                 </p>
               </article>
               <aside className='page-section-aside'>
@@ -165,8 +160,8 @@ export default function MainPage() {
                     alt='Информационный телеграм-канал СоцКооп'
                   />
                   <p className='qr-item-label'>
-                    Информационный телеграм-канал.
-                    <a href='https://t.me/+8DFjKvDrZR41ZGIy' target='_blank'>
+                    Наш телеграм-бот.&nbsp;
+                    <a href='https://t.me/soc_coop_start_bot' target='_blank'>
                       Прямая ссылка
                     </a>
                   </p>

@@ -2,6 +2,8 @@ import Typography from '@mui/material/Typography'
 import styled from 'styled-components'
 import { useCallback, useEffect, useState } from 'react'
 import Button from '@mui/material/Button';
+import ChangeCircleIcon from '@mui/icons-material/ChangeCircle';
+import PeopleIcon from '@mui/icons-material/People';
 
 import QRModal from './QRModal';
 import { productsTotal, subscribe, toCurrencyStringRu, toLocaleStringRu } from '../utils'
@@ -27,7 +29,12 @@ export const Product = props => {
     <tr className="product" style={{ background: props.darker ? '#E7F7EB' : undefined }}>
       <td>
         <Typography title={model.product.comment}>
-          {model.product.name} {!!model.product.category && <small>({model.product.category})</small>}
+          {model.product.name} 
+          {!!model.product.category && <small>({model.product.category})</small>}
+          &nbsp;
+          {!!model.forChange && <ChangeCircleIcon color="success" style={{verticalAlign: 'middle'}}/>}
+          &nbsp;
+          {!!model.forCooperate && <PeopleIcon color="primary" style={{verticalAlign: 'middle'}}/>}
         </Typography>
       </td><td>
         <Typography>
@@ -53,12 +60,40 @@ export const Product = props => {
 const ru = new Intl.NumberFormat("ru", { style: "currency", currency: "RUB" })
 
 export default () => {
+
+  const [history, setHistory] = useState({})
+  useEffect(() => subscribe(
+    database.ref('ordersHistory'),
+    'value',
+    snap => setHistory(snap.val() || {})
+  ), []);
+
+  useEffect(() => subscribe(
+    database.ref(`ordersHistory`),
+    'value',
+    snap => setHistory(snap.val() || {})
+  ), [])
+  const foo = Object.entries(history).reduce((acc, [userId, orders]) => {
+    const orderList = Object.entries(orders).reduce((orderAcc, [orderId, order]) => {
+      if (order.date > 1670911255000 && order.date < 1671033600000) {
+        orderAcc[orderId] = order;
+      }
+      return orderAcc;
+    }, {});
+    if (Object.keys(orderList).length >= 1) {
+      acc[userId] = orderList;
+    }
+    return acc;
+  }, {})
+
+
   const [orders, setOrders] = useState({})
   useEffect(() => subscribe(
     database.ref(`orders/${auth.currentUser.uid}`),
     'value',
     snap => setOrders(snap.val() || {})
   ), [])
+
   const [ordersHistory, setOrdersHistory] = useState({})
   useEffect(() => subscribe(
     database.ref(`ordersHistory/${auth.currentUser.uid}`),
@@ -74,7 +109,7 @@ export default () => {
   return <Orders orders={orders} ordersHistory={ordersHistory} ordersCanceled={ordersCanceled} />
 }
 
-export const Order = ({ order, id, cancellable = false, deletable = false, actual = false }) => {
+export const Order = ({ order, id, cancellable = false, deletable = false, actual = false, withPhone = false }) => {
   const { products, date } = order
   const total = productsTotal(products)
   const orderedAt = toLocaleStringRu(date)
@@ -105,16 +140,16 @@ export const Order = ({ order, id, cancellable = false, deletable = false, actua
     phone: order.phone,
     total
   }
-
+  const optionForNotCalled = order.isRemoveIfNotCalled ? 'удалить' : 'заменить';
 
   return <>
     {actual && <QRModal isOpened={isQRModalOpened} id={placedOrderId} onClose={closeModal} details={details}/>}
     <tr className="category">
       <td colSpan={100}>
-        {cancellable && <button style={{ float: 'right' }} onClick={cancelOrder}>🗑️</button>}
-        {deletable && <button style={{ float: 'right' }} onClick={deleteOrder}>🗑️</button>}
+        {cancellable && <button style={{ float: 'right' }} onClick={cancelOrder} disabled>🗑️</button>}
+        {deletable && <button style={{ float: 'right' }} onClick={deleteOrder} disabled>🗑️</button>}
         <Typography variant="h6">
-          Заказ от <b>{orderedAt}</b> на сумму <b>{toCurrencyStringRu(total)}</b>
+          Заказ от <b>{orderedAt}</b> <b>{withPhone ? order.phone : ''}</b> на сумму <b>{toCurrencyStringRu(total)}</b>
         </Typography>
         {!!order.name && <Typography align="left">
           {order.name}
@@ -125,6 +160,17 @@ export const Order = ({ order, id, cancellable = false, deletable = false, actua
         {!!order.comment && <Typography align="left">
           {order.comment}
         </Typography>}
+        {!!order.wantToChange && 
+          <Typography align="left">
+            Есть продукты для замены, в случае недозвона {optionForNotCalled} продукты
+          </Typography>
+        }
+        {!!order.wantToCooperate && 
+        <Typography align="left">
+          <b>Детали кооперации:</b><br/>
+          {order.cooperateDetails}
+        </Typography>
+        }
         {actual && <div className='pay-wrapper'><Button variant="outlined" onClick={openModal}>Оплатить</Button></div>}
       </td>
     </tr>
@@ -164,7 +210,7 @@ export const Orders = ({ orders = {}, ordersHistory = {}, ordersCanceled = {} })
         </tbody>
       </Table>
 
-      <PageTitle sx={{ marginTop: '1em' }}>Исполенные заказы</PageTitle>
+      <PageTitle sx={{ marginTop: '1em' }}>Исполненные заказы</PageTitle>
       <Table>
         <thead>
           <tr>

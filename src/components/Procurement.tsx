@@ -2,16 +2,25 @@ import Typography from '@mui/material/Typography'
 import styled from 'styled-components'
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { productsTotal, subscribe, toCurrencyStringRu, useSelector, useToggle } from '../utils'
+import { productsTotal, subscribe, toCurrencyStringRu, toLocaleStringRu, useSelector, useToggle } from '../utils'
 import { database } from '../firebase'
 import { Table } from './Table'
 import { Order } from './Orders'
 import PageTitle from './PageTitle'
 import { categorize } from './ProductList'
+import { Button } from '@mui/material'
 
 const Root = styled.div`
   padding: 1em;
 `
+
+const generateListFromOrders = (orders) => {
+  return Object.entries(orders).flatMap(([userId, ordersByKey]) => {
+    return Object.entries(ordersByKey).map(([orderId, order]) => ({
+      ...order, orderId, userId
+    }));
+  })
+}
 
 const adminSelector = store => !!store.claims.admin
 
@@ -33,7 +42,6 @@ const useProcurement = ({ historical, start, end }) => {
           if (!Object.entries(val[uid]).length)
             delete val[uid]
         }
-      console.log(val)
       setOrders(val)
     }
   ), [])
@@ -73,6 +81,16 @@ const useProducts = orders => {
       }
     }
   }
+  // console.log(JSON.stringify(Object.values(products).reduce((acc, product) => {
+  //   acc.push({
+  //     'Название': product.name,
+  //      'Категория': product.category,
+  //      'Количество': product.count,
+  //      'Цена': product.price,
+  //      'Сумма': product.price * product.count,
+  //   })
+  //   return acc;
+  // }, [])))
   const categories = categorize(products)
   for (const category in categories) {
     categories[category] = {
@@ -126,6 +144,47 @@ export const Orders = ({ historical = false, start = 0, end = Infinity }) => {
         })))
     }))
   }, [orders])
+
+  // TODO: ОТЧЁТЫ
+
+  // console.log(JSON.stringify(Object.values(orders).flatMap(order => Object.values(order)).map((order) => ({
+  //   'Дата': new Date(order.date).toISOString(),
+  //   'Имя': order.name,
+  //   'Адрес': order.address,
+  //   'Телефон': order.phone,
+  //   'Комментарий': order.comment,
+  //   'Есть продукты с заменой?': order.wantToChange ? 'Да' : 'Нет',
+  //   'Есть продукты для кооперации?': order.wantToCooperate ? 'Да' : 'Нет',
+  //   'Детали кооперации': order.cooperateDetails, 
+  // }))));
+
+  // console.log(JSON.stringify(generateListFromOrders(orders).sort((a, b) => b.date - a.date).reduce((acc, order, index) => {
+  //   acc.push(Object.values(order.products).reduce((accum, {count, product, forChange, forCooperate}) => {
+  //     accum.push({
+  //       index,
+  //       'Номер': order.phone,
+  //       'Адрес': order.address,
+  //       'Детали заказа': 
+  //       `Заказ от ${toLocaleStringRu(order.date)} ${toCurrencyStringRu(productsTotal(order.products))}\n\n`
+  //       + `${order.name}\n`
+  //       + `${order.comment}\n`
+  //       + `${order.wantToChange ? 'Есть продукты с заменой, в случае недозвона' : ''} ${order.wantToChange ? (order.isRemoveIfNotCalled ? 'удалить их\n\n' : 'заменить их\n\n') : ''}`
+  //       + `${order.wantToCooperate ? 'Есть продукты с кооперацией\n\n' : ''}`
+  //       + `${order.wantToCooperate ? 'Детали кооперации: \n' : ''}`
+  //       + `${order.wantToCooperate ? order.cooperateDetails : ''}`,
+  //       'Название': product.name,
+  //       'Количество': count,
+  //       'Для замены': forChange ? 'Да' : 'Нет',
+  //       'Для кооперации': forCooperate ? 'Да' : 'Нет',
+  //       'Цена': product.price,
+  //       'Сумма': product.price * count,
+  //       'Категория': product.category,
+  //     })
+  //     return accum;
+  //   }, []))
+  //   return acc;
+  // }, []).flat()))
+
   return (
     <Root>
       <PageTitle>
@@ -145,21 +204,8 @@ export const Orders = ({ historical = false, start = 0, end = Infinity }) => {
         <tbody>
           {byProducts
             ? <ByProducts orders={orders} />
-            : Object.entries<any>(orders).sort(sortByDate).map(([id, orders]) =>
-              <React.Fragment key={id}>
-                <tr className="category">
-                  <td colSpan={100} style={{ background: '#bae5c6' }}>
-                    <Typography variant="h5">
-                      Пользователь <b>{Object.values<any>(orders)[0]?.phone}</b>,
-                      заказов: {Object.values(orders).length},
-                      на сумму: <b>{toCurrencyStringRu(Object.values<any>(orders).reduce((acc, order) => acc += productsTotal(order.products), 0))}</b>
-                    </Typography>
-                  </td>
-                </tr>
-                {Object.entries<any>(orders).sort(sortByDate).map(([id, order]) =>
-                  <Order key={id} id={id} order={order} cancellable />
-                )}
-              </React.Fragment>
+            : generateListFromOrders(orders).sort((a, b) => b.date - a.date).map(
+              (order, index) => <Order key={index} id={order.id} order={order} cancellable withPhone />
             )
           }
           {!Object.entries<any>(orders).length ? (
@@ -172,7 +218,7 @@ export const Orders = ({ historical = false, start = 0, end = Infinity }) => {
                 {historical ? (
                   <Typography variant="h5" align="center"><b>Итого закупка на {toCurrencyStringRu(total)}</b></Typography>
                 ) : (
-                  <button onClick={finishProcurement} style={{ padding: '1em', display: 'block', width: '100%' }} >
+                  <button onClick={finishProcurement} style={{ padding: '1em', display: 'block', width: '100%' }} disabled>
                     <Typography variant="h5">Закрыть закупку на {toCurrencyStringRu(total)}</Typography>
                   </button>
                 )}
